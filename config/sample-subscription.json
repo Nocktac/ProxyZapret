@@ -1,0 +1,27 @@
+{
+  "outbounds": [
+    {
+      "type": "vless",
+      "tag": "sample-primary",
+      "server": "primary.example.invalid",
+      "server_port": 443,
+      "uuid": "00000000-0000-0000-0000-000000000001",
+      "tls": {
+        "enabled": true,
+        "server_name": "primary.example.invalid"
+      }
+    },
+    {
+      "type": "vless",
+      "tag": "sample-backup",
+      "server": "backup.example.invalid",
+      "server_port": 443,
+      "uuid": "00000000-0000-0000-0000-000000000002",
+      "tls": {
+        "enabled": true,
+        "server_name": "backup.example.invalid"
+      }
+    }
+  ]
+}
+

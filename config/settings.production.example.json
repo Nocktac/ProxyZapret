@@ -1,0 +1,8 @@
+{
+  "subscriptionUrl": "",
+  "updateManifestUrl": "https://github.com/Nocktac/ProxyZapret/releases/latest/download/update.json",
+  "subscriptionRefreshMinutes": 360,
+  "healthCheckInterval": "1m",
+  "healthCheckUrl": "https://www.gstatic.com/generate_204",
+  "healthCheckToleranceMs": 100
+}

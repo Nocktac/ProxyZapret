@@ -1,0 +1,9 @@
+config/settings.local.json
+runtime/
+core/sing-box.exe
+core/*.dll
+*.log
+ProxyZapret.exe
+ProxyZapret.Updater.exe
+release/
+config/settings.production.json
