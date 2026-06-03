@@ -161,7 +161,12 @@ namespace ProxyZapret
 
     internal static class UpdateManager
     {
-        private const string CurrentVersion = "0.4.1";
+        private const string CurrentVersion = "0.4.2";
+
+        public static string Version
+        {
+            get { return CurrentVersion; }
+        }
 
         public static bool TryStartUpdate()
         {
@@ -285,9 +290,9 @@ namespace ProxyZapret
 
         private static int CompareVersions(string left, string right)
         {
-            Version leftVersion;
-            Version rightVersion;
-            if (!Version.TryParse(left, out leftVersion) || !Version.TryParse(right, out rightVersion))
+            System.Version leftVersion;
+            System.Version rightVersion;
+            if (!System.Version.TryParse(left, out leftVersion) || !System.Version.TryParse(right, out rightVersion))
                 throw new InvalidOperationException("Update manifest contains an invalid version.");
             return leftVersion.CompareTo(rightVersion);
         }
@@ -365,7 +370,7 @@ namespace ProxyZapret
 
             var windowTitle = new Label
             {
-                Text = "ProxyZapret",
+                Text = "ProxyZapret " + UpdateManager.Version,
                 Font = new Font("Segoe UI", 9F),
                 ForeColor = Color.FromArgb(209, 217, 230),
                 AutoSize = true,
@@ -402,6 +407,17 @@ namespace ProxyZapret
                 Location = new Point(94, 64)
             };
             Controls.Add(title);
+
+            var version = new Label
+            {
+                Text = "v" + UpdateManager.Version,
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = Color.FromArgb(67, 211, 164),
+                AutoSize = true,
+                BackColor = background,
+                Location = new Point(276, 76)
+            };
+            Controls.Add(version);
 
             var subtitle = new Label
             {
@@ -463,7 +479,7 @@ namespace ProxyZapret
 
             var footer = new Label
             {
-                Text = "Only restricted services are routed through the proxy",
+                Text = "Version " + UpdateManager.Version + " · only restricted services are proxied",
                 Font = new Font("Segoe UI", 8.5F),
                 ForeColor = muted,
                 TextAlign = ContentAlignment.MiddleCenter,
