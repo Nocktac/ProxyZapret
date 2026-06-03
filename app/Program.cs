@@ -29,7 +29,7 @@ namespace ProxyZapret
             {
                 try
                 {
-                    if (UpdateManager.TryStartUpdate())
+                    if (UpdateManager.TryStartUpdateWithUi())
                         return;
                 }
                 catch (Exception exception)
@@ -130,6 +130,23 @@ namespace ProxyZapret
                 Environment.Exit(0);
             }
 
+            if (args.Contains("--update-preview"))
+            {
+                using (var preview = new UpdateForm())
+                using (var bitmap = new Bitmap(preview.Width, preview.Height))
+                {
+                    preview.Show();
+                    preview.SetProgress("Downloading ProxyZapret " + UpdateManager.Version + "...", 58);
+                    preview.DrawToBitmap(bitmap, new Rectangle(0, 0, bitmap.Width, bitmap.Height));
+                    bitmap.Save(
+                        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "runtime", "update-preview.png"),
+                        System.Drawing.Imaging.ImageFormat.Png
+                    );
+                    preview.Dispose();
+                }
+                Environment.Exit(0);
+            }
+
             bool created;
             using (var mutex = new System.Threading.Mutex(true, "ProxyZapret.SingleInstance", out created))
             {
@@ -162,15 +179,30 @@ namespace ProxyZapret
 
     internal static class UpdateManager
     {
-        private const string CurrentVersion = "0.4.3";
+        private const string CurrentVersion = "0.4.4";
 
         public static string Version
         {
             get { return CurrentVersion; }
         }
 
-        public static bool TryStartUpdate()
+        public static bool TryStartUpdateWithUi()
         {
+            using (var form = new UpdateForm())
+            {
+                form.Show();
+                form.Refresh();
+                return TryStartUpdate(delegate(string text, int percent)
+                {
+                    form.SetProgress(text, percent);
+                    Application.DoEvents();
+                });
+            }
+        }
+
+        public static bool TryStartUpdate(Action<string, int> progress)
+        {
+            Report(progress, "Checking for updates...", 8);
             var root = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
             var writableRoot = GetWritableRoot();
             var settingsPath = Path.Combine(writableRoot, "config", "settings.local.json");
@@ -198,6 +230,7 @@ namespace ProxyZapret
             if (CompareVersions(manifest.version, CurrentVersion) <= 0)
                 return false;
 
+            Report(progress, "Downloading ProxyZapret " + manifest.version + "...", 28);
             var updateDirectory = Path.Combine(writableRoot, "runtime", "update");
             Directory.CreateDirectory(updateDirectory);
             var downloaded = Path.Combine(updateDirectory, "ProxyZapret.exe.download");
@@ -207,6 +240,7 @@ namespace ProxyZapret
                 client.DownloadFile(manifest.url, downloaded);
             }
 
+            Report(progress, "Verifying update package...", 68);
             var actualHash = ComputeSha256(downloaded);
             if (!String.Equals(actualHash, manifest.sha256, StringComparison.OrdinalIgnoreCase))
             {
@@ -214,7 +248,9 @@ namespace ProxyZapret
                 throw new InvalidOperationException("Downloaded update SHA-256 does not match the release manifest.");
             }
 
+            Report(progress, "Preparing updater...", 82);
             UpdateUpdater(manifest, updaterPath, updateDirectory);
+            Report(progress, "Restarting to apply update...", 96);
             Process.Start(new ProcessStartInfo
             {
                 FileName = updaterPath,
@@ -227,6 +263,7 @@ namespace ProxyZapret
                 WorkingDirectory = root,
                 UseShellExecute = true
             });
+            System.Threading.Thread.Sleep(600);
             return true;
         }
 
@@ -254,6 +291,11 @@ namespace ProxyZapret
             if (!String.IsNullOrWhiteSpace(manifest.updaterSha256) &&
                 (manifest.updaterSha256.Length != 64 || !manifest.updaterSha256.All(Uri.IsHexDigit)))
                 throw new InvalidOperationException("Update manifest contains an invalid updater SHA-256 hash.");
+        }
+
+        private static void Report(Action<string, int> progress, string text, int percent)
+        {
+            if (progress != null) progress(text, percent);
         }
 
         private static void UpdateUpdater(UpdateManifest manifest, string updaterPath, string updateDirectory)
@@ -316,6 +358,96 @@ namespace ProxyZapret
                 Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
                 "ProxyZapret"
             );
+        }
+    }
+
+    internal sealed class UpdateForm : Form
+    {
+        private readonly Label detail;
+        private readonly ProgressBar progressBar;
+        private readonly Color background = Color.FromArgb(14, 18, 27);
+        private readonly Color card = Color.FromArgb(24, 31, 45);
+        private readonly Color muted = Color.FromArgb(145, 157, 178);
+        private readonly Color accent = Color.FromArgb(67, 211, 164);
+
+        public UpdateForm()
+        {
+            Text = "ProxyZapret Update";
+            ClientSize = new Size(420, 230);
+            StartPosition = FormStartPosition.CenterScreen;
+            FormBorderStyle = FormBorderStyle.None;
+            BackColor = background;
+            ForeColor = Color.White;
+            Font = new Font("Segoe UI", 9F);
+            Padding = new Padding(1);
+
+            var title = new Label
+            {
+                Text = "Updating ProxyZapret",
+                Font = new Font("Segoe UI Semibold", 18F, FontStyle.Bold),
+                ForeColor = Color.White,
+                AutoSize = true,
+                BackColor = background,
+                Location = new Point(34, 34)
+            };
+            Controls.Add(title);
+
+            var version = new Label
+            {
+                Text = "current v" + UpdateManager.Version,
+                Font = new Font("Segoe UI", 9F),
+                ForeColor = accent,
+                AutoSize = true,
+                BackColor = background,
+                Location = new Point(36, 73)
+            };
+            Controls.Add(version);
+
+            var panel = new Panel
+            {
+                Location = new Point(34, 112),
+                Size = new Size(352, 82),
+                BackColor = card
+            };
+            Controls.Add(panel);
+
+            detail = new Label
+            {
+                Text = "Checking for updates...",
+                Font = new Font("Segoe UI", 9.5F),
+                ForeColor = Color.FromArgb(225, 231, 240),
+                AutoSize = false,
+                Size = new Size(308, 22),
+                Location = new Point(22, 17),
+                BackColor = card
+            };
+            panel.Controls.Add(detail);
+
+            progressBar = new ProgressBar
+            {
+                Minimum = 0,
+                Maximum = 100,
+                Value = 5,
+                Size = new Size(308, 18),
+                Location = new Point(22, 48),
+                Style = ProgressBarStyle.Continuous
+            };
+            panel.Controls.Add(progressBar);
+        }
+
+        public void SetProgress(string text, int percent)
+        {
+            detail.Text = text;
+            progressBar.Value = Math.Max(progressBar.Minimum, Math.Min(progressBar.Maximum, percent));
+            Refresh();
+        }
+
+        protected override void OnPaint(PaintEventArgs eventArgs)
+        {
+            base.OnPaint(eventArgs);
+            eventArgs.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            using (var pen = new Pen(Color.FromArgb(50, 60, 78)))
+                eventArgs.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
         }
     }
 

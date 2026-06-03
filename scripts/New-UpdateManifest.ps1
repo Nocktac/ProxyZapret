@@ -1,5 +1,5 @@
 param(
-    [string] $Version = '0.4.3',
+    [string] $Version = '0.4.4',
     [Parameter(Mandatory)][string] $DownloadUrl,
     [Parameter(Mandatory)][string] $UpdaterDownloadUrl,
     [string] $Output = '.\release\update.json'
