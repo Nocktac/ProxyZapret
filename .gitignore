@@ -7,3 +7,7 @@ ProxyZapret.exe
 ProxyZapret.Updater.exe
 release/
 config/settings.production.json
+android/local.properties
+android/.gradle/
+android/build/
+android/app/build/

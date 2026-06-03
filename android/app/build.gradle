@@ -1,0 +1,36 @@
+plugins {
+    id "com.android.application"
+}
+
+def localProps = new Properties()
+def localPropsFile = rootProject.file("local.properties")
+if (localPropsFile.exists()) {
+    localPropsFile.withInputStream { localProps.load(it) }
+}
+
+def subscriptionUrl = providers.environmentVariable("PROXYZAPRET_SUBSCRIPTION_URL")
+    .orElse(localProps.getProperty("proxyzapret.subscriptionUrl", ""))
+    .get()
+
+android {
+    namespace "ru.nocktac.proxyzapret"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "ru.nocktac.proxyzapret"
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName "0.1.0"
+        buildConfigField "String", "SUBSCRIPTION_URL", "\"${subscriptionUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

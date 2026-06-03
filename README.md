@@ -1,6 +1,7 @@
 # ProxyZapret
 
 Minimal Windows `.exe` split-tunnel client for a managed Remnawave subscription.
+An Android foundation is also available under `android/`.
 
 The end-user interface intentionally exposes one action only: turn the proxy on
 or off. Server credentials come from Remnawave. Routing rules are shipped with
@@ -138,3 +139,12 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-Installer.ps
 ```
 
 The result is written to `release\ProxyZapret-Setup-0.4.0.exe`.
+
+## Android client
+
+The Android project lives in `android/`. It includes a native one-button UI,
+`VpnService` lifecycle, Remnawave subscription loading, URI parsing, and
+sing-box JSON generation.
+
+Android traffic forwarding is intentionally fail-closed until the official
+sing-box/libbox Android bridge is integrated. See `android\README.md`.
