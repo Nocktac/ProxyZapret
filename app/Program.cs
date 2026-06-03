@@ -179,7 +179,7 @@ namespace ProxyZapret
 
     internal static class UpdateManager
     {
-        private const string CurrentVersion = "0.4.4";
+        private const string CurrentVersion = "0.4.5";
 
         public static string Version
         {
@@ -364,7 +364,7 @@ namespace ProxyZapret
     internal sealed class UpdateForm : Form
     {
         private readonly Label detail;
-        private readonly ProgressBar progressBar;
+        private readonly CrispProgressBar progressBar;
         private readonly Color background = Color.FromArgb(14, 18, 27);
         private readonly Color card = Color.FromArgb(24, 31, 45);
         private readonly Color muted = Color.FromArgb(145, 157, 178);
@@ -403,11 +403,11 @@ namespace ProxyZapret
             };
             Controls.Add(version);
 
-            var panel = new Panel
+            var panel = new UpdatePanel
             {
                 Location = new Point(34, 112),
                 Size = new Size(352, 82),
-                BackColor = card
+                BackColor = background
             };
             Controls.Add(panel);
 
@@ -419,18 +419,15 @@ namespace ProxyZapret
                 AutoSize = false,
                 Size = new Size(308, 22),
                 Location = new Point(22, 17),
-                BackColor = card
+                BackColor = Color.Transparent
             };
             panel.Controls.Add(detail);
 
-            progressBar = new ProgressBar
+            progressBar = new CrispProgressBar
             {
-                Minimum = 0,
-                Maximum = 100,
                 Value = 5,
                 Size = new Size(308, 18),
-                Location = new Point(22, 48),
-                Style = ProgressBarStyle.Continuous
+                Location = new Point(22, 48)
             };
             panel.Controls.Add(progressBar);
         }
@@ -438,7 +435,7 @@ namespace ProxyZapret
         public void SetProgress(string text, int percent)
         {
             detail.Text = text;
-            progressBar.Value = Math.Max(progressBar.Minimum, Math.Min(progressBar.Maximum, percent));
+            progressBar.Value = percent;
             Refresh();
         }
 
@@ -772,6 +769,60 @@ namespace ProxyZapret
         }
     }
 
+    internal sealed class UpdatePanel : Panel
+    {
+        public UpdatePanel()
+        {
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer, true);
+        }
+
+        protected override void OnPaint(PaintEventArgs eventArgs)
+        {
+            base.OnPaint(eventArgs);
+            var graphics = eventArgs.Graphics;
+            graphics.SmoothingMode = SmoothingMode.None;
+            using (var brush = new SolidBrush(Color.FromArgb(24, 31, 45)))
+                graphics.FillRectangle(brush, 0, 0, Width, Height);
+            using (var pen = new Pen(Color.FromArgb(36, 46, 64)))
+                graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
+        }
+    }
+
+    internal sealed class CrispProgressBar : Control
+    {
+        private int value;
+
+        public int Value
+        {
+            get { return value; }
+            set
+            {
+                this.value = Math.Max(0, Math.Min(100, value));
+                Invalidate();
+            }
+        }
+
+        public CrispProgressBar()
+        {
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer, true);
+            value = 0;
+        }
+
+        protected override void OnPaint(PaintEventArgs eventArgs)
+        {
+            base.OnPaint(eventArgs);
+            var graphics = eventArgs.Graphics;
+            graphics.SmoothingMode = SmoothingMode.None;
+            using (var background = new SolidBrush(Color.FromArgb(36, 46, 64)))
+                graphics.FillRectangle(background, 0, 0, Width, Height);
+            var fillWidth = Math.Max(2, (Width * value) / 100);
+            using (var fill = new SolidBrush(Color.FromArgb(67, 211, 164)))
+                graphics.FillRectangle(fill, 0, 0, fillWidth, Height);
+            using (var pen = new Pen(Color.FromArgb(55, 68, 90)))
+                graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
+        }
+    }
+
     internal sealed class BrandPanel : Panel
     {
         public BrandPanel()
@@ -856,10 +907,10 @@ namespace ProxyZapret
 
             var centerX = Width / 2;
             var centerY = 74;
-            var glow = Active ? Color.FromArgb(45, 67, 211, 164) : Color.FromArgb(24, 145, 157, 178);
+            var disk = Active ? Color.FromArgb(31, 68, 60) : Color.FromArgb(35, 44, 61);
             var ring = Active ? Color.FromArgb(67, 211, 164) : Color.FromArgb(95, 108, 130);
-            using (var brush = new SolidBrush(glow))
-                graphics.FillEllipse(brush, centerX - 48.5F, centerY - 48.5F, 97F, 97F);
+            using (var brush = new SolidBrush(disk))
+                graphics.FillEllipse(brush, centerX - 44.5F, centerY - 44.5F, 89F, 89F);
             using (var pen = new Pen(ring, 3.4F))
                 graphics.DrawEllipse(pen, centerX - 33.5F, centerY - 33.5F, 67F, 67F);
             using (var pen = new Pen(ring, 5F))
