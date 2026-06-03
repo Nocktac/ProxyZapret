@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -161,7 +162,7 @@ namespace ProxyZapret
 
     internal static class UpdateManager
     {
-        private const string CurrentVersion = "0.4.2";
+        private const string CurrentVersion = "0.4.3";
 
         public static string Version
         {
@@ -323,7 +324,7 @@ namespace ProxyZapret
         private readonly ClientController controller;
         private readonly Label status;
         private readonly Label statusDetail;
-        private readonly Button toggle;
+        private readonly RoundButton toggle;
         private readonly NotifyIcon tray;
         private readonly Timer refreshTimer;
         private readonly StatusPanel statusPanel;
@@ -338,7 +339,7 @@ namespace ProxyZapret
             this.controller = controller;
             brandIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? SystemIcons.Shield;
             Text = "ProxyZapret";
-            ClientSize = new Size(420, 514);
+            ClientSize = new Size(440, 540);
             StartPosition = FormStartPosition.CenterScreen;
             FormBorderStyle = FormBorderStyle.None;
             MaximizeBox = false;
@@ -351,7 +352,7 @@ namespace ProxyZapret
             var titleBar = new Panel
             {
                 Location = new Point(1, 1),
-                Size = new Size(418, 36),
+                Size = new Size(438, 38),
                 BackColor = Color.FromArgb(21, 26, 37)
             };
             titleBar.MouseDown += DragWindow;
@@ -380,19 +381,23 @@ namespace ProxyZapret
             windowTitle.MouseDown += DragWindow;
             titleBar.Controls.Add(windowTitle);
 
-            var minimize = CreateCaptionButton("−", 346, titleBar.BackColor, Color.FromArgb(225, 231, 240));
+            var minimize = CreateCaptionButton("_", 360, titleBar.BackColor, Color.FromArgb(225, 231, 240));
+            minimize.Text = "_";
+            minimize.Location = new Point(360, 1);
             minimize.Click += delegate { WindowState = FormWindowState.Minimized; };
             titleBar.Controls.Add(minimize);
 
-            var close = CreateCaptionButton("×", 382, titleBar.BackColor, Color.FromArgb(225, 231, 240));
+            var close = CreateCaptionButton("X", 398, titleBar.BackColor, Color.FromArgb(225, 231, 240));
+            close.Text = "X";
+            close.Location = new Point(398, 1);
             close.FlatAppearance.MouseOverBackColor = Color.FromArgb(192, 64, 72);
             close.Click += delegate { Hide(); };
             titleBar.Controls.Add(close);
 
             var brand = new BrandPanel
             {
-                Location = new Point(28, 61),
-                Size = new Size(364, 62),
+                Location = new Point(34, 64),
+                Size = new Size(372, 66),
                 BackColor = background
             };
             Controls.Add(brand);
@@ -404,7 +409,7 @@ namespace ProxyZapret
                 ForeColor = Color.White,
                 AutoSize = true,
                 BackColor = background,
-                Location = new Point(94, 64)
+                Location = new Point(104, 68)
             };
             Controls.Add(title);
 
@@ -415,7 +420,7 @@ namespace ProxyZapret
                 ForeColor = Color.FromArgb(67, 211, 164),
                 AutoSize = true,
                 BackColor = background,
-                Location = new Point(276, 76)
+                Location = new Point(300, 80)
             };
             Controls.Add(version);
 
@@ -426,15 +431,15 @@ namespace ProxyZapret
                 ForeColor = muted,
                 AutoSize = true,
                 BackColor = background,
-                Location = new Point(96, 99)
+                Location = new Point(106, 104)
             };
             Controls.Add(subtitle);
 
             statusPanel = new StatusPanel
             {
-                Location = new Point(28, 152),
-                Size = new Size(364, 180),
-                BackColor = card
+                Location = new Point(34, 154),
+                Size = new Size(372, 190),
+                BackColor = background
             };
             Controls.Add(statusPanel);
 
@@ -444,9 +449,9 @@ namespace ProxyZapret
                 Font = new Font("Segoe UI Semibold", 16, FontStyle.Bold),
                 ForeColor = Color.White,
                 TextAlign = ContentAlignment.MiddleCenter,
-                Size = new Size(300, 32),
-                BackColor = card,
-                Location = new Point(32, 103)
+                Size = new Size(320, 32),
+                BackColor = Color.Transparent,
+                Location = new Point(26, 112)
             };
             statusPanel.Controls.Add(status);
 
@@ -457,12 +462,12 @@ namespace ProxyZapret
                 ForeColor = muted,
                 TextAlign = ContentAlignment.MiddleCenter,
                 Size = new Size(320, 24),
-                BackColor = card,
-                Location = new Point(22, 138)
+                BackColor = Color.Transparent,
+                Location = new Point(26, 148)
             };
             statusPanel.Controls.Add(statusDetail);
 
-            toggle = new Button
+            toggle = new RoundButton
             {
                 Text = "TURN ON",
                 Font = new Font("Segoe UI Semibold", 11F, FontStyle.Bold),
@@ -470,8 +475,9 @@ namespace ProxyZapret
                 ForeColor = background,
                 BackColor = accent,
                 Cursor = Cursors.Hand,
-                Size = new Size(244, 52),
-                Location = new Point(88, 366)
+                Size = new Size(252, 54),
+                Location = new Point(94, 374),
+                Radius = 14
             };
             toggle.FlatAppearance.BorderSize = 0;
             toggle.Click += ToggleClick;
@@ -479,14 +485,15 @@ namespace ProxyZapret
 
             var footer = new Label
             {
-                Text = "Version " + UpdateManager.Version + " · only restricted services are proxied",
+                Text = "Version " + UpdateManager.Version + " - only restricted services are proxied",
                 Font = new Font("Segoe UI", 8.5F),
                 ForeColor = muted,
                 TextAlign = ContentAlignment.MiddleCenter,
-                Size = new Size(370, 28),
-                Location = new Point(25, 448),
+                Size = new Size(390, 28),
+                Location = new Point(25, 466),
                 BackColor = background
             };
+            footer.Text = "Version " + UpdateManager.Version + " - only restricted services are proxied";
             Controls.Add(footer);
 
             var menu = new ContextMenuStrip();
@@ -557,6 +564,7 @@ namespace ProxyZapret
 
         private void ToggleClick(object sender, EventArgs eventArgs)
         {
+            var wasRunning = controller.IsRunning;
             try
             {
                 toggle.Enabled = false;
@@ -564,6 +572,12 @@ namespace ProxyZapret
                 Application.DoEvents();
                 if (controller.IsRunning) controller.Stop();
                 else controller.Start();
+                if (!wasRunning && controller.IsRunning)
+                {
+                    UpdateUi();
+                    Hide();
+                    tray.ShowBalloonTip(1500, "ProxyZapret", "Connected. The app is running in the tray.", ToolTipIcon.Info);
+                }
             }
             catch (Exception exception)
             {
@@ -620,6 +634,7 @@ namespace ProxyZapret
         protected override void OnPaint(PaintEventArgs eventArgs)
         {
             base.OnPaint(eventArgs);
+            eventArgs.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
             using (var pen = new Pen(Color.FromArgb(50, 60, 78)))
                 eventArgs.Graphics.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
         }
@@ -627,22 +642,64 @@ namespace ProxyZapret
 
     internal sealed class BrandPanel : Panel
     {
+        public BrandPanel()
+        {
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer, true);
+        }
+
         protected override void OnPaint(PaintEventArgs eventArgs)
         {
             base.OnPaint(eventArgs);
-            eventArgs.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            var graphics = eventArgs.Graphics;
+            graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+
             using (var brush = new SolidBrush(Color.FromArgb(67, 211, 164)))
-                eventArgs.Graphics.FillEllipse(brush, 0, 4, 54, 54);
-            using (var pen = new Pen(Color.FromArgb(14, 18, 27), 3F))
+                graphics.FillEllipse(brush, 0.5F, 5.5F, 54F, 54F);
+            using (var pen = new Pen(Color.FromArgb(14, 18, 27), 3.2F))
             {
-                var shield = new Point[] {
-                    new Point(27, 16), new Point(40, 21), new Point(38, 35),
-                    new Point(27, 45), new Point(16, 35), new Point(14, 21)
+                pen.LineJoin = LineJoin.Round;
+                pen.StartCap = LineCap.Round;
+                pen.EndCap = LineCap.Round;
+                var shield = new PointF[] {
+                    new PointF(27, 17), new PointF(40, 22), new PointF(38, 36),
+                    new PointF(27, 46), new PointF(16, 36), new PointF(14, 22)
                 };
-                eventArgs.Graphics.DrawPolygon(pen, shield);
-                eventArgs.Graphics.DrawLine(pen, 21, 29, 26, 34);
-                eventArgs.Graphics.DrawLine(pen, 26, 34, 34, 25);
+                graphics.DrawPolygon(pen, shield);
+                graphics.DrawLines(pen, new[] {
+                    new PointF(21, 30), new PointF(26, 35), new PointF(35, 26)
+                });
             }
+        }
+    }
+
+    internal sealed class RoundButton : Button
+    {
+        public int Radius { get; set; }
+
+        public RoundButton()
+        {
+            Radius = 12;
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer, true);
+        }
+
+        protected override void OnPaint(PaintEventArgs eventArgs)
+        {
+            var graphics = eventArgs.Graphics;
+            graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            var bounds = new Rectangle(0, 0, Width - 1, Height - 1);
+            using (var path = UiDrawing.RoundedRectangle(bounds, Radius))
+            using (var brush = new SolidBrush(BackColor))
+                graphics.FillPath(brush, path);
+            TextRenderer.DrawText(
+                graphics,
+                Text,
+                Font,
+                bounds,
+                Enabled ? ForeColor : Color.FromArgb(130, 140, 155),
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter
+            );
         }
     }
 
@@ -658,20 +715,43 @@ namespace ProxyZapret
         protected override void OnPaint(PaintEventArgs eventArgs)
         {
             base.OnPaint(eventArgs);
-            eventArgs.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            var graphics = eventArgs.Graphics;
+            graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            using (var path = UiDrawing.RoundedRectangle(new Rectangle(0, 0, Width - 1, Height - 1), 18))
+            using (var brush = new SolidBrush(Color.FromArgb(24, 31, 45)))
+                graphics.FillPath(brush, path);
+
             var centerX = Width / 2;
-            var centerY = 68;
+            var centerY = 74;
             var glow = Active ? Color.FromArgb(45, 67, 211, 164) : Color.FromArgb(24, 145, 157, 178);
             var ring = Active ? Color.FromArgb(67, 211, 164) : Color.FromArgb(95, 108, 130);
             using (var brush = new SolidBrush(glow))
-                eventArgs.Graphics.FillEllipse(brush, centerX - 48, centerY - 48, 96, 96);
-            using (var pen = new Pen(ring, 4F))
-                eventArgs.Graphics.DrawEllipse(pen, centerX - 33, centerY - 33, 66, 66);
+                graphics.FillEllipse(brush, centerX - 48.5F, centerY - 48.5F, 97F, 97F);
+            using (var pen = new Pen(ring, 3.4F))
+                graphics.DrawEllipse(pen, centerX - 33.5F, centerY - 33.5F, 67F, 67F);
             using (var pen = new Pen(ring, 5F))
             {
-                eventArgs.Graphics.DrawLine(pen, centerX, centerY - 21, centerX, centerY + 3);
-                eventArgs.Graphics.DrawArc(pen, centerX - 18, centerY - 8, 36, 36, -42, 264);
+                pen.StartCap = LineCap.Round;
+                pen.EndCap = LineCap.Round;
+                graphics.DrawLine(pen, centerX, centerY - 22, centerX, centerY + 1);
+                graphics.DrawArc(pen, centerX - 20, centerY - 12, 40, 40, 42, 276);
             }
+        }
+    }
+
+    internal static class UiDrawing
+    {
+        public static GraphicsPath RoundedRectangle(Rectangle bounds, int radius)
+        {
+            var diameter = radius * 2;
+            var path = new GraphicsPath();
+            path.AddArc(bounds.Left, bounds.Top, diameter, diameter, 180, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Top, diameter, diameter, 270, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Bottom - diameter, diameter, diameter, 0, 90);
+            path.AddArc(bounds.Left, bounds.Bottom - diameter, diameter, diameter, 90, 90);
+            path.CloseFigure();
+            return path;
         }
     }
 
