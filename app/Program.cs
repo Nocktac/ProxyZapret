@@ -179,7 +179,7 @@ namespace ProxyZapret
 
     internal static class UpdateManager
     {
-        private const string CurrentVersion = "0.4.7";
+        private const string CurrentVersion = "0.4.8";
 
         public static string Version
         {
@@ -466,11 +466,13 @@ namespace ProxyZapret
         private readonly Color muted = Color.FromArgb(145, 157, 178);
         private readonly Color accent = Color.FromArgb(67, 211, 164);
         private readonly Icon brandIcon;
+        private readonly Icon trayIcon;
 
         public MainForm(ClientController controller)
         {
             this.controller = controller;
-            brandIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? SystemIcons.Shield;
+            brandIcon = BrandIconRenderer.CreateIcon(32);
+            trayIcon = BrandIconRenderer.CreateIcon(16);
             Text = "ProxyZapret";
             ClientSize = new Size(440, 540);
             StartPosition = FormStartPosition.CenterScreen;
@@ -493,8 +495,8 @@ namespace ProxyZapret
 
             var windowIcon = new PictureBox
             {
-                Image = brandIcon.ToBitmap(),
-                SizeMode = PictureBoxSizeMode.StretchImage,
+                Image = BrandIconRenderer.CreateBitmap(18),
+                SizeMode = PictureBoxSizeMode.Normal,
                 Location = new Point(10, 9),
                 Size = new Size(18, 18),
                 BackColor = titleBar.BackColor
@@ -635,7 +637,7 @@ namespace ProxyZapret
 
             tray = new NotifyIcon
             {
-                Icon = brandIcon,
+                Icon = trayIcon,
                 Text = "ProxyZapret",
                 Visible = true,
                 ContextMenuStrip = menu
@@ -764,6 +766,17 @@ namespace ProxyZapret
             Application.Exit();
         }
 
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                if (tray != null) tray.Dispose();
+                if (brandIcon != null) brandIcon.Dispose();
+                if (trayIcon != null) trayIcon.Dispose();
+            }
+            base.Dispose(disposing);
+        }
+
         protected override void OnPaint(PaintEventArgs eventArgs)
         {
             base.OnPaint(eventArgs);
@@ -827,6 +840,107 @@ namespace ProxyZapret
         }
     }
 
+    internal static class BrandIconRenderer
+    {
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        private static extern bool DestroyIcon(IntPtr handle);
+
+        public static Icon CreateIcon(int size)
+        {
+            using (var bitmap = CreateBitmap(size))
+            {
+                var handle = bitmap.GetHicon();
+                try
+                {
+                    using (var icon = Icon.FromHandle(handle))
+                        return (Icon)icon.Clone();
+                }
+                finally
+                {
+                    DestroyIcon(handle);
+                }
+            }
+        }
+
+        public static Bitmap CreateBitmap(int size)
+        {
+            var bitmap = new Bitmap(size, size, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+            using (var graphics = Graphics.FromImage(bitmap))
+            {
+                graphics.SmoothingMode = SmoothingMode.AntiAlias;
+                graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                graphics.Clear(Color.Transparent);
+                Draw(graphics, new RectangleF(0, 0, size, size), size >= 24);
+            }
+            return bitmap;
+        }
+
+        public static void Draw(Graphics graphics, RectangleF bounds, bool drawCheck)
+        {
+            var scale = Math.Min(bounds.Width, bounds.Height) / 256F;
+            var offsetX = bounds.X + (bounds.Width - (256F * scale)) / 2F;
+            var offsetY = bounds.Y + (bounds.Height - (256F * scale)) / 2F;
+
+            using (var backgroundPath = UiDrawing.RoundedRectangleF(
+                new RectangleF(offsetX + 18F * scale, offsetY + 18F * scale, 220F * scale, 220F * scale),
+                48F * scale
+            ))
+            using (var background = new LinearGradientBrush(
+                new RectangleF(offsetX + 18F * scale, offsetY + 18F * scale, 220F * scale, 220F * scale),
+                Color.FromArgb(255, 18, 25, 38),
+                Color.FromArgb(255, 8, 13, 24),
+                LinearGradientMode.ForwardDiagonal
+            ))
+            using (var ring = new Pen(Color.FromArgb(130, 91, 166, 255), Math.Max(1F, 7F * scale)))
+            {
+                ring.LineJoin = LineJoin.Round;
+                graphics.FillPath(background, backgroundPath);
+                graphics.DrawPath(ring, backgroundPath);
+            }
+
+            var shieldPoints = new[] {
+                new PointF(offsetX + 128F * scale, offsetY + 55F * scale),
+                new PointF(offsetX + 184F * scale, offsetY + 77F * scale),
+                new PointF(offsetX + 174F * scale, offsetY + 158F * scale),
+                new PointF(offsetX + 128F * scale, offsetY + 205F * scale),
+                new PointF(offsetX + 82F * scale, offsetY + 158F * scale),
+                new PointF(offsetX + 72F * scale, offsetY + 77F * scale)
+            };
+
+            using (var shield = new GraphicsPath())
+            {
+                shield.AddPolygon(shieldPoints);
+                using (var fill = new LinearGradientBrush(
+                    new RectangleF(offsetX + 70F * scale, offsetY + 50F * scale, 116F * scale, 160F * scale),
+                    Color.FromArgb(255, 77, 211, 168),
+                    Color.FromArgb(255, 55, 126, 255),
+                    LinearGradientMode.ForwardDiagonal
+                ))
+                using (var border = new Pen(Color.FromArgb(235, 238, 246, 255), Math.Max(1.4F, 9F * scale)))
+                {
+                    border.LineJoin = LineJoin.Round;
+                    graphics.FillPath(fill, shield);
+                    graphics.DrawPath(border, shield);
+                }
+            }
+
+            if (!drawCheck) return;
+
+            using (var check = new Pen(Color.FromArgb(255, 245, 250, 255), Math.Max(1.8F, 13F * scale)))
+            {
+                check.StartCap = LineCap.Round;
+                check.EndCap = LineCap.Round;
+                check.LineJoin = LineJoin.Round;
+                graphics.DrawLines(check, new[] {
+                    new PointF(offsetX + 101F * scale, offsetY + 133F * scale),
+                    new PointF(offsetX + 121F * scale, offsetY + 153F * scale),
+                    new PointF(offsetX + 158F * scale, offsetY + 109F * scale)
+                });
+            }
+        }
+    }
+
     internal sealed class BrandPanel : Panel
     {
         public BrandPanel()
@@ -840,23 +954,7 @@ namespace ProxyZapret
             var graphics = eventArgs.Graphics;
             graphics.SmoothingMode = SmoothingMode.AntiAlias;
             graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-
-            using (var brush = new SolidBrush(Color.FromArgb(67, 211, 164)))
-                graphics.FillEllipse(brush, 0.5F, 5.5F, 54F, 54F);
-            using (var pen = new Pen(Color.FromArgb(14, 18, 27), 3.2F))
-            {
-                pen.LineJoin = LineJoin.Round;
-                pen.StartCap = LineCap.Round;
-                pen.EndCap = LineCap.Round;
-                var shield = new PointF[] {
-                    new PointF(27, 17), new PointF(40, 22), new PointF(38, 36),
-                    new PointF(27, 46), new PointF(16, 36), new PointF(14, 22)
-                };
-                graphics.DrawPolygon(pen, shield);
-                graphics.DrawLines(pen, new[] {
-                    new PointF(21, 30), new PointF(26, 35), new PointF(35, 26)
-                });
-            }
+            BrandIconRenderer.Draw(graphics, new RectangleF(0, 5, 56, 56), true);
         }
     }
 
@@ -932,6 +1030,18 @@ namespace ProxyZapret
         public static GraphicsPath RoundedRectangle(Rectangle bounds, int radius)
         {
             var diameter = radius * 2;
+            var path = new GraphicsPath();
+            path.AddArc(bounds.Left, bounds.Top, diameter, diameter, 180, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Top, diameter, diameter, 270, 90);
+            path.AddArc(bounds.Right - diameter, bounds.Bottom - diameter, diameter, diameter, 0, 90);
+            path.AddArc(bounds.Left, bounds.Bottom - diameter, diameter, diameter, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
+        public static GraphicsPath RoundedRectangleF(RectangleF bounds, float radius)
+        {
+            var diameter = radius * 2F;
             var path = new GraphicsPath();
             path.AddArc(bounds.Left, bounds.Top, diameter, diameter, 180, 90);
             path.AddArc(bounds.Right - diameter, bounds.Top, diameter, diameter, 270, 90);
