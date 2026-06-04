@@ -185,7 +185,7 @@ namespace ProxyZapret
 
     internal static class UpdateManager
     {
-        private const string CurrentVersion = "0.4.9";
+        private const string CurrentVersion = "0.4.10";
 
         public static string Version
         {
@@ -594,7 +594,7 @@ namespace ProxyZapret
                 TextAlign = ContentAlignment.MiddleCenter,
                 Size = new Size(320, 32),
                 BackColor = Color.Transparent,
-                Location = new Point(26, 112)
+                Location = new Point(26, 124)
             };
             statusPanel.Controls.Add(status);
 
@@ -606,7 +606,7 @@ namespace ProxyZapret
                 TextAlign = ContentAlignment.MiddleCenter,
                 Size = new Size(320, 24),
                 BackColor = Color.Transparent,
-                Location = new Point(26, 148)
+                Location = new Point(26, 154)
             };
             statusPanel.Controls.Add(statusDetail);
 
@@ -757,7 +757,7 @@ namespace ProxyZapret
                 statusDetail.Text = "Restricted services use the secure route";
                 status.ForeColor = Color.White;
                 toggle.Text = "TURN OFF";
-                toggle.BackColor = Color.FromArgb(42, 51, 68);
+                toggle.BackColor = Color.FromArgb(34, 44, 62);
                 toggle.ForeColor = Color.FromArgb(225, 231, 240);
                 tray.Text = "ProxyZapret: connected";
                 statusPanel.Active = true;
@@ -896,16 +896,25 @@ namespace ProxyZapret
                 graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
                 graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
                 graphics.Clear(Color.Transparent);
-                Draw(graphics, new RectangleF(0, 0, size, size), size >= 24);
+                Draw(graphics, new RectangleF(0, 0, size, size), size >= 24, true);
             }
             return bitmap;
         }
 
         public static void Draw(Graphics graphics, RectangleF bounds, bool drawCheck)
         {
+            Draw(graphics, bounds, drawCheck, true);
+        }
+
+        public static void Draw(Graphics graphics, RectangleF bounds, bool drawCheck, bool active)
+        {
             var scale = Math.Min(bounds.Width, bounds.Height) / 256F;
             var offsetX = bounds.X + (bounds.Width - (256F * scale)) / 2F;
             var offsetY = bounds.Y + (bounds.Height - (256F * scale)) / 2F;
+            var topColor = active ? Color.FromArgb(255, 77, 211, 168) : Color.FromArgb(255, 108, 122, 146);
+            var bottomColor = active ? Color.FromArgb(255, 55, 126, 255) : Color.FromArgb(255, 65, 78, 104);
+            var ringColor = active ? Color.FromArgb(130, 91, 166, 255) : Color.FromArgb(105, 94, 111, 140);
+            var borderColor = active ? Color.FromArgb(235, 238, 246, 255) : Color.FromArgb(210, 163, 174, 196);
 
             using (var backgroundPath = UiDrawing.RoundedRectangleF(
                 new RectangleF(offsetX + 18F * scale, offsetY + 18F * scale, 220F * scale, 220F * scale),
@@ -917,7 +926,7 @@ namespace ProxyZapret
                 Color.FromArgb(255, 8, 13, 24),
                 LinearGradientMode.ForwardDiagonal
             ))
-            using (var ring = new Pen(Color.FromArgb(130, 91, 166, 255), Math.Max(1F, 7F * scale)))
+            using (var ring = new Pen(ringColor, Math.Max(1F, 7F * scale)))
             {
                 ring.LineJoin = LineJoin.Round;
                 graphics.FillPath(background, backgroundPath);
@@ -938,11 +947,11 @@ namespace ProxyZapret
                 shield.AddPolygon(shieldPoints);
                 using (var fill = new LinearGradientBrush(
                     new RectangleF(offsetX + 70F * scale, offsetY + 50F * scale, 116F * scale, 160F * scale),
-                    Color.FromArgb(255, 77, 211, 168),
-                    Color.FromArgb(255, 55, 126, 255),
+                    topColor,
+                    bottomColor,
                     LinearGradientMode.ForwardDiagonal
                 ))
-                using (var border = new Pen(Color.FromArgb(235, 238, 246, 255), Math.Max(1.4F, 9F * scale)))
+                using (var border = new Pen(borderColor, Math.Max(1.4F, 9F * scale)))
                 {
                     border.LineJoin = LineJoin.Round;
                     graphics.FillPath(fill, shield);
@@ -952,16 +961,23 @@ namespace ProxyZapret
 
             if (!drawCheck) return;
 
-            using (var check = new Pen(Color.FromArgb(255, 245, 250, 255), Math.Max(1.8F, 13F * scale)))
+            using (var check = new Pen(active ? Color.FromArgb(255, 245, 250, 255) : Color.FromArgb(255, 205, 214, 232), Math.Max(1.8F, 13F * scale)))
             {
                 check.StartCap = LineCap.Round;
                 check.EndCap = LineCap.Round;
                 check.LineJoin = LineJoin.Round;
-                graphics.DrawLines(check, new[] {
-                    new PointF(offsetX + 101F * scale, offsetY + 133F * scale),
-                    new PointF(offsetX + 121F * scale, offsetY + 153F * scale),
-                    new PointF(offsetX + 158F * scale, offsetY + 109F * scale)
-                });
+                if (active)
+                {
+                    graphics.DrawLines(check, new[] {
+                        new PointF(offsetX + 101F * scale, offsetY + 133F * scale),
+                        new PointF(offsetX + 121F * scale, offsetY + 153F * scale),
+                        new PointF(offsetX + 158F * scale, offsetY + 109F * scale)
+                    });
+                }
+                else
+                {
+                    graphics.DrawLine(check, offsetX + 101F * scale, offsetY + 128F * scale, offsetX + 155F * scale, offsetY + 128F * scale);
+                }
             }
         }
     }
@@ -1028,24 +1044,44 @@ namespace ProxyZapret
             var graphics = eventArgs.Graphics;
             graphics.SmoothingMode = SmoothingMode.AntiAlias;
             graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-            using (var path = UiDrawing.RoundedRectangle(new Rectangle(0, 0, Width - 1, Height - 1), 18))
-            using (var brush = new SolidBrush(Color.FromArgb(24, 31, 45)))
+            var bounds = new Rectangle(0, 0, Width - 1, Height - 1);
+            using (var path = UiDrawing.RoundedRectangle(bounds, 18))
+            using (var brush = new LinearGradientBrush(
+                bounds,
+                Active ? Color.FromArgb(27, 42, 58) : Color.FromArgb(24, 31, 45),
+                Active ? Color.FromArgb(20, 31, 48) : Color.FromArgb(19, 25, 37),
+                LinearGradientMode.ForwardDiagonal
+            ))
+            using (var border = new Pen(Active ? Color.FromArgb(64, 157, 209, 182) : Color.FromArgb(42, 53, 72)))
+            {
                 graphics.FillPath(brush, path);
+                graphics.DrawPath(border, path);
+            }
 
             var centerX = Width / 2;
-            var centerY = 74;
-            var disk = Active ? Color.FromArgb(31, 68, 60) : Color.FromArgb(35, 44, 61);
-            var ring = Active ? Color.FromArgb(67, 211, 164) : Color.FromArgb(95, 108, 130);
-            using (var brush = new SolidBrush(disk))
-                graphics.FillEllipse(brush, centerX - 44.5F, centerY - 44.5F, 89F, 89F);
-            using (var pen = new Pen(ring, 3.4F))
-                graphics.DrawEllipse(pen, centerX - 33.5F, centerY - 33.5F, 67F, 67F);
-            using (var pen = new Pen(ring, 5F))
+            var centerY = 58;
+            BrandIconRenderer.Draw(graphics, new RectangleF(centerX - 42, centerY - 42, 84, 84), true, Active);
+
+            var badgeText = Active ? "SECURE ROUTE" : "STANDBY";
+            var badgeColor = Active ? Color.FromArgb(67, 211, 164) : Color.FromArgb(128, 142, 166);
+            var badgeBounds = new Rectangle(centerX - 56, centerY + 39, 112, 24);
+            using (var badgePath = UiDrawing.RoundedRectangle(badgeBounds, 12))
+            using (var badgeBrush = new SolidBrush(Active ? Color.FromArgb(31, 72, 62) : Color.FromArgb(37, 47, 65)))
+            using (var badgePen = new Pen(Active ? Color.FromArgb(68, 99, 213, 176) : Color.FromArgb(55, 68, 90)))
             {
-                pen.StartCap = LineCap.Round;
-                pen.EndCap = LineCap.Round;
-                graphics.DrawLine(pen, centerX, centerY - 22, centerX, centerY + 1);
-                graphics.DrawArc(pen, centerX - 20, centerY - 12, 40, 40, 42, 276);
+                graphics.FillPath(badgeBrush, badgePath);
+                graphics.DrawPath(badgePen, badgePath);
+            }
+            using (var badgeFont = new Font("Segoe UI Semibold", 7.5F, FontStyle.Bold))
+            {
+                TextRenderer.DrawText(
+                    graphics,
+                    badgeText,
+                    badgeFont,
+                    badgeBounds,
+                    badgeColor,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter
+                );
             }
         }
     }
