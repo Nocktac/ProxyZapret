@@ -35,8 +35,8 @@ Source: "..\config\routing-rules.json"; DestDir: "{app}\config"; Flags: ignoreve
 Source: "..\config\settings.production.json"; DestDir: "{commonappdata}\ProxyZapret\config"; DestName: "settings.local.json"; Flags: onlyifdoesntexist uninsneveruninstall
 
 [Icons]
-Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; AppUserModelID: "Nocktac.ProxyZapret"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; AppUserModelID: "Nocktac.ProxyZapret"
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Run {#MyAppName}"; Verb: "runas"; Flags: shellexec nowait postinstall skipifsilent

@@ -18,10 +18,16 @@ namespace ProxyZapret
 {
     internal static class Program
     {
+        private const string AppUserModelId = "Nocktac.ProxyZapret";
+
+        [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+        private static extern int SetCurrentProcessExplicitAppUserModelID(string appId);
+
         [STAThread]
         private static void Main(string[] args)
         {
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+            SetCurrentProcessExplicitAppUserModelID(AppUserModelId);
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
