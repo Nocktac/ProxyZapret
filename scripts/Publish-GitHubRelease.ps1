@@ -13,6 +13,11 @@ if ($LASTEXITCODE -ne 0) {
     throw 'Installer build failed.'
 }
 
+& (Join-Path $PSScriptRoot 'Build-Portable.ps1') -Version $Version
+if ($LASTEXITCODE -ne 0) {
+    throw 'Portable package build failed.'
+}
+
 & (Join-Path $PSScriptRoot 'New-UpdateManifest.ps1') `
     -Version $Version `
     -DownloadUrl "$baseUrl/ProxyZapret.exe" `
@@ -25,6 +30,7 @@ $assets = @(
     (Join-Path $root 'ProxyZapret.exe'),
     (Join-Path $root 'ProxyZapret.Updater.exe'),
     (Join-Path $release "ProxyZapret-Setup-$Version.exe"),
+    (Join-Path $release "ProxyZapret-Portable-$Version.zip"),
     (Join-Path $release 'update.json')
 )
 

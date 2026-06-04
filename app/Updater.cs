@@ -40,8 +40,10 @@ namespace ProxyZapret.Updater
             {
                 try
                 {
+                    var runtime = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "runtime");
+                    Directory.CreateDirectory(runtime);
                     File.WriteAllText(
-                        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "runtime", "updater.error.log"),
+                        Path.Combine(runtime, "updater.error.log"),
                         exception.ToString()
                     );
                 }
@@ -104,4 +106,3 @@ namespace ProxyZapret.Updater
         }
     }
 }
-

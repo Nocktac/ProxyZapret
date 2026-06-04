@@ -179,7 +179,7 @@ namespace ProxyZapret
 
     internal static class UpdateManager
     {
-        private const string CurrentVersion = "0.4.6";
+        private const string CurrentVersion = "0.4.7";
 
         public static string Version
         {
@@ -354,6 +354,10 @@ namespace ProxyZapret
 
         private static string GetWritableRoot()
         {
+            var root = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
+            if (File.Exists(Path.Combine(root, "config", "settings.local.json")))
+                return root;
+
             return Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
                 "ProxyZapret"
@@ -960,10 +964,7 @@ namespace ProxyZapret
         public ClientController()
         {
             root = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
-            var writableRoot = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
-                "ProxyZapret"
-            );
+            var writableRoot = GetWritableRoot(root);
             runtime = Path.Combine(writableRoot, "runtime");
             core = Path.Combine(root, "core", "sing-box.exe");
             settingsPath = Path.Combine(writableRoot, "config", "settings.local.json");
@@ -976,6 +977,17 @@ namespace ProxyZapret
             generatedConfigPath = Path.Combine(runtime, "sing-box.generated.json");
             rulesCachePath = Path.Combine(runtime, "rules-cache.db");
             Initialize();
+        }
+
+        private static string GetWritableRoot(string root)
+        {
+            if (File.Exists(Path.Combine(root, "config", "settings.local.json")))
+                return root;
+
+            return Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                "ProxyZapret"
+            );
         }
 
         public bool IsRunning
