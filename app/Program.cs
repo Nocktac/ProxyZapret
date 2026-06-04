@@ -18,7 +18,7 @@ namespace ProxyZapret
 {
     internal static class Program
     {
-        private const string AppUserModelId = "Nocktac.ProxyZapret";
+        private const string AppUserModelId = "Nocktac.ProxyZapret.Client";
 
         [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
         private static extern int SetCurrentProcessExplicitAppUserModelID(string appId);
@@ -185,7 +185,7 @@ namespace ProxyZapret
 
     internal static class UpdateManager
     {
-        private const string CurrentVersion = "0.4.8";
+        private const string CurrentVersion = "0.4.9";
 
         public static string Version
         {
@@ -472,12 +472,14 @@ namespace ProxyZapret
         private readonly Color muted = Color.FromArgb(145, 157, 178);
         private readonly Color accent = Color.FromArgb(67, 211, 164);
         private readonly Icon brandIcon;
+        private readonly Icon taskbarIcon;
         private readonly Icon trayIcon;
 
         public MainForm(ClientController controller)
         {
             this.controller = controller;
             brandIcon = BrandIconRenderer.CreateIcon(32);
+            taskbarIcon = BrandIconRenderer.CreateIcon(48);
             trayIcon = BrandIconRenderer.CreateIcon(16);
             Text = "ProxyZapret";
             ClientSize = new Size(440, 540);
@@ -676,6 +678,22 @@ namespace ProxyZapret
         [DllImport("user32.dll")]
         private static extern IntPtr SendMessage(IntPtr windowHandle, int message, int parameter, int value);
 
+        [DllImport("user32.dll")]
+        private static extern IntPtr SendMessage(IntPtr windowHandle, int message, IntPtr parameter, IntPtr value);
+
+        protected override void OnHandleCreated(EventArgs eventArgs)
+        {
+            base.OnHandleCreated(eventArgs);
+            ApplyWindowIcons();
+        }
+
+        private void ApplyWindowIcons()
+        {
+            const int wmSetIcon = 0x80;
+            SendMessage(Handle, wmSetIcon, new IntPtr(0), trayIcon.Handle);
+            SendMessage(Handle, wmSetIcon, new IntPtr(1), taskbarIcon.Handle);
+        }
+
         private Button CreateCaptionButton(string text, int x, Color baseColor, Color textColor)
         {
             var button = new Button
@@ -778,6 +796,7 @@ namespace ProxyZapret
             {
                 if (tray != null) tray.Dispose();
                 if (brandIcon != null) brandIcon.Dispose();
+                if (taskbarIcon != null) taskbarIcon.Dispose();
                 if (trayIcon != null) trayIcon.Dispose();
             }
             base.Dispose(disposing);
