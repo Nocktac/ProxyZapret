@@ -1501,6 +1501,7 @@ namespace ProxyZapret
         private Dictionary<string, object> BuildConfig(Dictionary<string, object> settings, Dictionary<string, object> subscription)
         {
             var rules = LoadObject(rulesPath);
+            EnsureRuleDefaults(rules);
             var nodes = GetManagedNodes(subscription);
             var tags = nodes.Select(node => node["tag"]).ToArray();
             var ruleSetTags = new object[] {
@@ -1608,6 +1609,28 @@ namespace ProxyZapret
                     "final", "direct"
                 )
             );
+        }
+
+        private static void EnsureRuleDefaults(Dictionary<string, object> rules)
+        {
+            if (!rules.ContainsKey("localDomainSuffixes"))
+            {
+                rules["localDomainSuffixes"] = new object[] {
+                    "local", "lan", "home", "home.arpa", "localdomain", "localhost",
+                    "intranet", "internal", "corp", "test",
+                    "10.in-addr.arpa", "168.192.in-addr.arpa",
+                    "16.172.in-addr.arpa", "17.172.in-addr.arpa", "18.172.in-addr.arpa",
+                    "19.172.in-addr.arpa", "20.172.in-addr.arpa", "21.172.in-addr.arpa",
+                    "22.172.in-addr.arpa", "23.172.in-addr.arpa", "24.172.in-addr.arpa",
+                    "25.172.in-addr.arpa", "26.172.in-addr.arpa", "27.172.in-addr.arpa",
+                    "28.172.in-addr.arpa", "29.172.in-addr.arpa", "30.172.in-addr.arpa",
+                    "31.172.in-addr.arpa"
+                };
+            }
+
+            if (!rules.ContainsKey("domainSuffixes")) rules["domainSuffixes"] = new object[0];
+            if (!rules.ContainsKey("ipCidrs")) rules["ipCidrs"] = new object[0];
+            if (!rules.ContainsKey("processNames")) rules["processNames"] = new object[0];
         }
 
         private List<Dictionary<string, object>> GetManagedNodes(Dictionary<string, object> subscription)
