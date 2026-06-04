@@ -179,7 +179,7 @@ namespace ProxyZapret
 
     internal static class UpdateManager
     {
-        private const string CurrentVersion = "0.4.5";
+        private const string CurrentVersion = "0.4.6";
 
         public static string Version
         {
@@ -1131,7 +1131,7 @@ namespace ProxyZapret
                 var rules = new ArrayList((ICollection)route["rules"]);
                 rules.Insert(1, Object(
                     "network", "udp",
-                    "ip_cidr", new object[] { "1.1.1.1/32" },
+                    "ip_cidr", UdpProbeTargets.Select(target => target + "/32").ToArray(),
                     "port", 53,
                     "action", "route",
                     "outbound", outbound
@@ -1156,6 +1156,8 @@ namespace ProxyZapret
             }
         }
 
+        private static readonly string[] UdpProbeTargets = new[] { "1.1.1.1", "8.8.8.8", "9.9.9.9" };
+
         private static void SendDnsProbe()
         {
             var query = new byte[] {
@@ -1165,16 +1167,30 @@ namespace ProxyZapret
                 0x03, (byte)'c', (byte)'o', (byte)'m', 0x00, 0x00,
                 0x01, 0x00, 0x01
             };
-            using (var udp = new UdpClient())
+            var errors = new List<string>();
+            foreach (var target in UdpProbeTargets)
             {
-                udp.Client.ReceiveTimeout = 5000;
-                udp.Connect("1.1.1.1", 53);
-                udp.Send(query, query.Length);
-                IPEndPoint remote = null;
-                var response = udp.Receive(ref remote);
-                if (response.Length < 12 || response[0] != 0x12 || response[1] != 0x34)
-                    throw new InvalidOperationException("UDP DNS probe returned an invalid response.");
+                try
+                {
+                    using (var udp = new UdpClient())
+                    {
+                        udp.Client.ReceiveTimeout = 5000;
+                        udp.Connect(target, 53);
+                        udp.Send(query, query.Length);
+                        IPEndPoint remote = null;
+                        var response = udp.Receive(ref remote);
+                        if (response.Length >= 12 && response[0] == 0x12 && response[1] == 0x34)
+                            return;
+                        errors.Add(target + ": invalid response");
+                    }
+                }
+                catch (Exception exception)
+                {
+                    errors.Add(target + ": " + exception.Message);
+                }
             }
+
+            throw new InvalidOperationException("UDP DNS probe failed for all targets. " + String.Join("; ", errors));
         }
 
         private void Initialize()
@@ -1487,6 +1503,13 @@ namespace ProxyZapret
             var rules = LoadObject(rulesPath);
             var nodes = GetManagedNodes(subscription);
             var tags = nodes.Select(node => node["tag"]).ToArray();
+            var ruleSetTags = new object[] {
+                "ru-blocked-domains-all", "ru-blocked-ip",
+                "service-discord", "service-telegram", "service-telegram-ip",
+                "service-meta", "service-instagram", "service-youtube",
+                "service-roblox", "service-twitter", "service-twitter-ip",
+                "service-tiktok", "service-whatsapp"
+            };
             var outbounds = new ArrayList
             {
                 Object("type", "direct", "tag", "direct")
@@ -1513,6 +1536,11 @@ namespace ProxyZapret
                 "dns", Object(
                     "servers", new object[] {
                         Object(
+                            "type", "local",
+                            "tag", "local-dns",
+                            "detour", "direct"
+                        ),
+                        Object(
                             "type", "https",
                             "tag", "public-dns",
                             "server", "1.1.1.1",
@@ -1521,7 +1549,13 @@ namespace ProxyZapret
                             "tls", Object("enabled", true, "server_name", "cloudflare-dns.com")
                         )
                     },
-                    "final", "public-dns",
+                    "rules", new object[] {
+                        Object("domain_suffix", rules["domainSuffixes"], "server", "public-dns"),
+                        Object("rule_set", ruleSetTags, "server", "public-dns"),
+                        Object("domain_suffix", rules["localDomainSuffixes"], "server", "local-dns"),
+                        Object("domain_regex", new object[] { "^[^.]+$" }, "server", "local-dns")
+                    },
+                    "final", "local-dns",
                     "strategy", "ipv4_only",
                     "reverse_mapping", true
                 ),
@@ -1559,17 +1593,13 @@ namespace ProxyZapret
                         Object("action", "sniff"),
                         Object("protocol", "dns", "action", "hijack-dns"),
                         Object("ip_is_private", true, "action", "route", "outbound", "direct"),
+                        Object("domain_suffix", rules["localDomainSuffixes"], "action", "route", "outbound", "direct"),
+                        Object("domain_regex", new object[] { "^[^.]+$" }, "action", "route", "outbound", "direct"),
                         Object("domain_suffix", rules["domainSuffixes"], "action", "route", "outbound", "managed-auto"),
                         Object("ip_cidr", rules["ipCidrs"], "action", "route", "outbound", "managed-auto"),
                         Object(
                             "rule_set",
-                            new object[] {
-                                "ru-blocked-domains-all", "ru-blocked-ip",
-                                "service-discord", "service-telegram", "service-telegram-ip",
-                                "service-meta", "service-instagram", "service-youtube",
-                                "service-roblox", "service-twitter", "service-twitter-ip",
-                                "service-tiktok", "service-whatsapp"
-                            },
+                            ruleSetTags,
                             "action", "route",
                             "outbound", "managed-auto"
                         ),
