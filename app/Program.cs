@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -186,10 +187,29 @@ namespace ProxyZapret
                     return;
 
                 var executable = Application.ExecutablePath;
+                var iconPath = EnsureShortcutIcon(root);
                 foreach (var path in GetShortcutPaths())
-                    RefreshShortcut(path, executable);
+                    RefreshShortcut(path, executable, iconPath);
             }
             catch { }
+        }
+
+        private static string EnsureShortcutIcon(string root)
+        {
+            var iconPath = Path.Combine(root, "ProxyZapret-" + UpdateManager.Version + ".ico");
+            if (!File.Exists(iconPath))
+                BrandIconRenderer.SaveMultiSizeIcon(iconPath);
+
+            foreach (var oldIcon in Directory.GetFiles(root, "ProxyZapret-*.ico"))
+            {
+                if (!String.Equals(oldIcon, iconPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    try { File.Delete(oldIcon); }
+                    catch { }
+                }
+            }
+
+            return iconPath;
         }
 
         private static IEnumerable<string> GetShortcutPaths()
@@ -210,7 +230,7 @@ namespace ProxyZapret
             }
         }
 
-        private static void RefreshShortcut(string path, string executable)
+        private static void RefreshShortcut(string path, string executable, string iconPath)
         {
             if (!File.Exists(path)) return;
 
@@ -232,7 +252,7 @@ namespace ProxyZapret
                 var shortcutType = shortcut.GetType();
                 shortcutType.InvokeMember("TargetPath", System.Reflection.BindingFlags.SetProperty, null, shortcut, new object[] { executable });
                 shortcutType.InvokeMember("WorkingDirectory", System.Reflection.BindingFlags.SetProperty, null, shortcut, new object[] { Path.GetDirectoryName(executable) });
-                shortcutType.InvokeMember("IconLocation", System.Reflection.BindingFlags.SetProperty, null, shortcut, new object[] { executable + ",0" });
+                shortcutType.InvokeMember("IconLocation", System.Reflection.BindingFlags.SetProperty, null, shortcut, new object[] { iconPath + ",0" });
                 shortcutType.InvokeMember("Description", System.Reflection.BindingFlags.SetProperty, null, shortcut, new object[] { "ProxyZapret" });
                 shortcutType.InvokeMember("Save", System.Reflection.BindingFlags.InvokeMethod, null, shortcut, null);
             }
@@ -255,7 +275,7 @@ namespace ProxyZapret
 
     internal static class UpdateManager
     {
-        private const string CurrentVersion = "0.4.13";
+        private const string CurrentVersion = "0.5.0";
 
         public static string Version
         {
@@ -976,6 +996,48 @@ namespace ProxyZapret
                 Draw(graphics, new RectangleF(0, 0, size, size), size >= 24, true);
             }
             return bitmap;
+        }
+
+        public static void SaveMultiSizeIcon(string path)
+        {
+            var sizes = new[] { 16, 24, 32, 48, 64, 128, 256 };
+            var images = new List<byte[]>();
+            foreach (var size in sizes)
+            {
+                using (var bitmap = CreateBitmap(size))
+                using (var stream = new MemoryStream())
+                {
+                    bitmap.Save(stream, ImageFormat.Png);
+                    images.Add(stream.ToArray());
+                }
+            }
+
+            using (var stream = File.Create(path))
+            using (var writer = new BinaryWriter(stream))
+            {
+                writer.Write((ushort)0);
+                writer.Write((ushort)1);
+                writer.Write((ushort)images.Count);
+
+                var offset = 6 + (16 * images.Count);
+                for (var index = 0; index < images.Count; index++)
+                {
+                    var size = sizes[index];
+                    var data = images[index];
+                    writer.Write((byte)(size == 256 ? 0 : size));
+                    writer.Write((byte)(size == 256 ? 0 : size));
+                    writer.Write((byte)0);
+                    writer.Write((byte)0);
+                    writer.Write((ushort)1);
+                    writer.Write((ushort)32);
+                    writer.Write((uint)data.Length);
+                    writer.Write((uint)offset);
+                    offset += data.Length;
+                }
+
+                foreach (var data in images)
+                    writer.Write(data);
+            }
         }
 
         public static void Draw(Graphics graphics, RectangleF bounds, bool drawCheck)

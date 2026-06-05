@@ -1,5 +1,5 @@
 param(
-    [string] $Version = '0.4.0'
+    [string] $Version = '0.5.0'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -31,4 +31,3 @@ if ($LASTEXITCODE -ne 0) {
 if ($LASTEXITCODE -ne 0) {
     throw 'Installer build failed.'
 }
-

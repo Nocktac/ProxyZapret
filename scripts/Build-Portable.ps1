@@ -1,5 +1,5 @@
 param(
-    [string] $Version = '0.4.7'
+    [string] $Version = '0.5.0'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -27,6 +27,7 @@ New-Item -ItemType Directory -Path $stage, (Join-Path $stage 'core'), (Join-Path
 
 Copy-Item -LiteralPath (Join-Path $root 'ProxyZapret.exe') -Destination $stage
 Copy-Item -LiteralPath (Join-Path $root 'ProxyZapret.Updater.exe') -Destination $stage
+Copy-Item -LiteralPath (Join-Path $root 'assets\ProxyZapret.ico') -Destination (Join-Path $stage "ProxyZapret-$Version.ico")
 Copy-Item -LiteralPath (Join-Path $root 'core\sing-box.exe') -Destination (Join-Path $stage 'core')
 Copy-Item -LiteralPath (Join-Path $root 'config\routing-rules.json') -Destination (Join-Path $stage 'config')
 Copy-Item -LiteralPath (Join-Path $root 'config\settings.example.json') -Destination (Join-Path $stage 'config')
