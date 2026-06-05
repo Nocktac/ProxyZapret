@@ -219,7 +219,8 @@ namespace ProxyZapret
                 Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
                 Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory),
                 Environment.GetFolderPath(Environment.SpecialFolder.Programs),
-                Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms)
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms),
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Microsoft", "Internet Explorer", "Quick Launch", "User Pinned", "TaskBar")
             };
 
             foreach (var folder in folders)
