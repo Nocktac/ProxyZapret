@@ -255,7 +255,7 @@ namespace ProxyZapret
 
     internal static class UpdateManager
     {
-        private const string CurrentVersion = "0.4.12";
+        private const string CurrentVersion = "0.4.13";
 
         public static string Version
         {
@@ -296,7 +296,7 @@ namespace ProxyZapret
                 return false;
 
             UpdateManifest manifest;
-            using (var client = new WebClient())
+            using (var client = CreateUpdateClient())
             {
                 client.Headers["User-Agent"] = "ProxyZapret-Updater/" + CurrentVersion;
                 manifest = json.Deserialize<UpdateManifest>(client.DownloadString(manifestUrl));
@@ -310,7 +310,7 @@ namespace ProxyZapret
             var updateDirectory = Path.Combine(writableRoot, "runtime", "update");
             Directory.CreateDirectory(updateDirectory);
             var downloaded = Path.Combine(updateDirectory, "ProxyZapret.exe.download");
-            using (var client = new WebClient())
+            using (var client = CreateUpdateClient())
             {
                 client.Headers["User-Agent"] = "ProxyZapret-Updater/" + CurrentVersion;
                 client.DownloadFile(manifest.url, downloaded);
@@ -381,7 +381,7 @@ namespace ProxyZapret
                 return;
 
             var downloaded = Path.Combine(updateDirectory, "ProxyZapret.Updater.exe.download");
-            using (var client = new WebClient())
+            using (var client = CreateUpdateClient())
             {
                 client.Headers["User-Agent"] = "ProxyZapret-Updater/" + CurrentVersion;
                 client.DownloadFile(manifest.updaterUrl, downloaded);
@@ -421,6 +421,13 @@ namespace ProxyZapret
             using (var stream = File.OpenRead(path))
             using (var sha = SHA256.Create())
                 return BitConverter.ToString(sha.ComputeHash(stream)).Replace("-", "").ToLowerInvariant();
+        }
+
+        private static WebClient CreateUpdateClient()
+        {
+            var client = new WebClient();
+            client.Proxy = null;
+            return client;
         }
 
         private static string Quote(string value)
