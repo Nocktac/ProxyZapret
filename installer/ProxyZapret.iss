@@ -34,6 +34,10 @@ Source: "..\config\settings.example.json"; DestDir: "{app}\config"; Flags: ignor
 Source: "..\config\routing-rules.json"; DestDir: "{app}\config"; Flags: ignoreversion
 Source: "..\config\settings.production.json"; DestDir: "{commonappdata}\ProxyZapret\config"; DestName: "settings.local.json"; Flags: onlyifdoesntexist uninsneveruninstall
 
+[InstallDelete]
+Type: files; Name: "{autodesktop}\{#MyAppName}.lnk"
+Type: files; Name: "{autoprograms}\{#MyAppName}.lnk"
+
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; AppUserModelID: "Nocktac.ProxyZapret.Client"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; AppUserModelID: "Nocktac.ProxyZapret.Client"

@@ -28,6 +28,7 @@ namespace ProxyZapret
         {
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             SetCurrentProcessExplicitAppUserModelID(AppUserModelId);
+            ShortcutManager.RefreshInstalledShortcuts();
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
@@ -174,6 +175,75 @@ namespace ProxyZapret
         }
     }
 
+    internal static class ShortcutManager
+    {
+        public static void RefreshInstalledShortcuts()
+        {
+            try
+            {
+                var root = AppDomain.CurrentDomain.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
+                if (File.Exists(Path.Combine(root, "config", "settings.local.json")))
+                    return;
+
+                var executable = Application.ExecutablePath;
+                foreach (var path in GetShortcutPaths())
+                    RefreshShortcut(path, executable);
+            }
+            catch { }
+        }
+
+        private static IEnumerable<string> GetShortcutPaths()
+        {
+            var names = new[] { "ProxyZapret.lnk" };
+            var folders = new[] {
+                Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory),
+                Environment.GetFolderPath(Environment.SpecialFolder.Programs),
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms)
+            };
+
+            foreach (var folder in folders)
+            {
+                if (String.IsNullOrWhiteSpace(folder)) continue;
+                foreach (var name in names)
+                    yield return Path.Combine(folder, name);
+            }
+        }
+
+        private static void RefreshShortcut(string path, string executable)
+        {
+            if (!File.Exists(path)) return;
+
+            object shell = null;
+            object shortcut = null;
+            try
+            {
+                var shellType = Type.GetTypeFromProgID("WScript.Shell");
+                if (shellType == null) return;
+
+                shell = Activator.CreateInstance(shellType);
+                shortcut = shellType.InvokeMember(
+                    "CreateShortcut",
+                    System.Reflection.BindingFlags.InvokeMethod,
+                    null,
+                    shell,
+                    new object[] { path }
+                );
+                var shortcutType = shortcut.GetType();
+                shortcutType.InvokeMember("TargetPath", System.Reflection.BindingFlags.SetProperty, null, shortcut, new object[] { executable });
+                shortcutType.InvokeMember("WorkingDirectory", System.Reflection.BindingFlags.SetProperty, null, shortcut, new object[] { Path.GetDirectoryName(executable) });
+                shortcutType.InvokeMember("IconLocation", System.Reflection.BindingFlags.SetProperty, null, shortcut, new object[] { executable + ",0" });
+                shortcutType.InvokeMember("Description", System.Reflection.BindingFlags.SetProperty, null, shortcut, new object[] { "ProxyZapret" });
+                shortcutType.InvokeMember("Save", System.Reflection.BindingFlags.InvokeMethod, null, shortcut, null);
+            }
+            finally
+            {
+                if (shortcut != null && Marshal.IsComObject(shortcut)) Marshal.ReleaseComObject(shortcut);
+                if (shell != null && Marshal.IsComObject(shell)) Marshal.ReleaseComObject(shell);
+            }
+        }
+    }
+
     internal sealed class UpdateManifest
     {
         public string version { get; set; }
@@ -185,7 +255,7 @@ namespace ProxyZapret
 
     internal static class UpdateManager
     {
-        private const string CurrentVersion = "0.4.11";
+        private const string CurrentVersion = "0.4.12";
 
         public static string Version
         {
