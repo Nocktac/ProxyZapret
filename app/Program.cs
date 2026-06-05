@@ -185,7 +185,7 @@ namespace ProxyZapret
 
     internal static class UpdateManager
     {
-        private const string CurrentVersion = "0.4.10";
+        private const string CurrentVersion = "0.4.11";
 
         public static string Version
         {
@@ -1721,8 +1721,7 @@ namespace ProxyZapret
                     "servers", new object[] {
                         Object(
                             "type", "local",
-                            "tag", "local-dns",
-                            "detour", "direct"
+                            "tag", "local-dns"
                         ),
                         Object(
                             "type", "https",
