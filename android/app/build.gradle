@@ -8,8 +8,15 @@ if (localPropsFile.exists()) {
     localPropsFile.withInputStream { localProps.load(it) }
 }
 
+def productionSubscriptionUrl = ""
+def productionSettingsFile = rootProject.file("../config/settings.production.json")
+if (productionSettingsFile.exists()) {
+    def productionSettings = new groovy.json.JsonSlurper().parse(productionSettingsFile)
+    productionSubscriptionUrl = productionSettings.subscriptionUrl ?: ""
+}
+
 def subscriptionUrl = providers.environmentVariable("PROXYZAPRET_SUBSCRIPTION_URL")
-    .orElse(localProps.getProperty("proxyzapret.subscriptionUrl", ""))
+    .orElse(localProps.getProperty("proxyzapret.subscriptionUrl", productionSubscriptionUrl))
     .get()
 
 android {
@@ -20,8 +27,8 @@ android {
         applicationId "ru.nocktac.proxyzapret"
         minSdk 26
         targetSdk 35
-        versionCode 1
-        versionName "0.1.0"
+        versionCode 50
+        versionName "0.5.0"
         buildConfigField "String", "SUBSCRIPTION_URL", "\"${subscriptionUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\""
     }
 

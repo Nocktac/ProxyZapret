@@ -57,6 +57,10 @@ public final class ProxyZapretVpnService extends VpnService {
             File configFile = new File(getFilesDir(), "sing-box.generated.json");
             builder.save(config, configFile);
 
+            if (!SingBoxCoreBridge.isAvailable()) {
+                throw new IllegalStateException(SingBoxCoreBridge.unavailableReason());
+            }
+
             tun = new Builder()
                 .setSession("ProxyZapret")
                 .addAddress("172.19.0.1", 30)
@@ -70,8 +74,7 @@ public final class ProxyZapretVpnService extends VpnService {
             setStatus(true, "Restricted services use the secure route");
             startForeground(1001, notification("ProxyZapret is connected"));
         } catch (Exception exception) {
-            setStatus(false, exception.getMessage());
-            stopVpn(exception.getMessage());
+            stopVpn(exception.getMessage(), exception.getMessage());
         }
     }
 
@@ -98,13 +101,17 @@ public final class ProxyZapretVpnService extends VpnService {
         return builder
             .setContentTitle("ProxyZapret")
             .setContentText(text)
-            .setSmallIcon(android.R.drawable.stat_sys_warning)
+            .setSmallIcon(ru.nocktac.proxyzapret.R.drawable.ic_notification)
             .setContentIntent(open)
             .setOngoing(true)
             .build();
     }
 
     private void stopVpn(String status) {
+        stopVpn(status, null);
+    }
+
+    private void stopVpn(String status, String error) {
         try {
             if (coreBridge != null) coreBridge.stop();
         } catch (Exception ignored) {
@@ -115,16 +122,21 @@ public final class ProxyZapretVpnService extends VpnService {
         }
         coreBridge = null;
         tun = null;
-        setStatus(false, status == null ? "Turn on to connect" : status);
+        setStatus(false, status == null ? "Turn on to connect" : status, error);
         stopForeground(true);
         stopSelf();
     }
 
     private void setStatus(boolean running, String status) {
+        setStatus(running, status, null);
+    }
+
+    private void setStatus(boolean running, String status, String error) {
         getSharedPreferences(AppState.PREFS, MODE_PRIVATE)
             .edit()
             .putBoolean(AppState.KEY_RUNNING, running)
             .putString(AppState.KEY_STATUS, status == null ? "" : status)
+            .putString(AppState.KEY_LAST_ERROR, error == null ? "" : error)
             .apply();
     }
 }
