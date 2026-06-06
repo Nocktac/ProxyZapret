@@ -17,6 +17,41 @@ using System.Windows.Forms;
 
 namespace ProxyZapret
 {
+    internal static class PrivateDiagnostics
+    {
+        private const int MonitorPort = 42048;
+        private static readonly object Sync = new object();
+
+        public static void Emit(string category, string message)
+        {
+            try
+            {
+                var safe = Sanitize(message);
+                var payload = DateTime.UtcNow.ToString("o") + "|" + Sanitize(category) + "|" + safe;
+                var bytes = Encoding.UTF8.GetBytes(payload);
+                lock (Sync)
+                {
+                    using (var client = new UdpClient(AddressFamily.InterNetwork))
+                        client.Send(bytes, bytes.Length, new IPEndPoint(IPAddress.Loopback, MonitorPort));
+                }
+            }
+            catch { }
+        }
+
+        private static string Sanitize(string value)
+        {
+            if (String.IsNullOrWhiteSpace(value)) return "";
+            var safe = value;
+            safe = System.Text.RegularExpressions.Regex.Replace(safe, @"https?://\S+", "[url]");
+            safe = System.Text.RegularExpressions.Regex.Replace(safe, @"(?<![\w])(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?", "[address]");
+            safe = System.Text.RegularExpressions.Regex.Replace(safe, @"(?i)\b[a-f0-9]{0,4}:[a-f0-9:]{2,}\b", "[address]");
+            safe = System.Text.RegularExpressions.Regex.Replace(safe, @"\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b", "[email]", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            safe = System.Text.RegularExpressions.Regex.Replace(safe, @"(?i)(password|token|secret|uuid|authorization|user|host)\s*[:=]\s*\S+", "$1=[redacted]");
+            safe = System.Text.RegularExpressions.Regex.Replace(safe, @"(?<![\w.-])(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?", "[host]", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            return safe.Length > 700 ? safe.Substring(0, 700) : safe;
+        }
+    }
+
     internal static class Program
     {
         private const string AppUserModelId = "Nocktac.ProxyZapret.Client";
@@ -276,7 +311,7 @@ namespace ProxyZapret
 
     internal static class UpdateManager
     {
-        private const string CurrentVersion = "0.5.0";
+        private const string CurrentVersion = "0.5.1";
 
         public static string Version
         {
@@ -1314,17 +1349,20 @@ namespace ProxyZapret
         public void Start()
         {
             if (IsRunning) return;
+            PrivateDiagnostics.Emit("windows", "Starting ProxyZapret core");
             var settings = LoadObject(settingsPath);
             var subscription = LoadSubscription(settings, true);
             var config = BuildConfig(settings, subscription);
             SaveJson(generatedConfigPath, config);
             CheckConfig(generatedConfigPath);
             StartCore(generatedConfigPath);
+            PrivateDiagnostics.Emit("windows", "ProxyZapret core is active");
         }
 
         public void Stop()
         {
             if (!IsRunning) return;
+            PrivateDiagnostics.Emit("windows", "Stopping ProxyZapret core");
             try
             {
                 coreProcess.Kill();
@@ -1334,6 +1372,7 @@ namespace ProxyZapret
             {
                 coreProcess.Dispose();
                 coreProcess = null;
+                PrivateDiagnostics.Emit("windows", "ProxyZapret core stopped");
             }
         }
 
@@ -1362,6 +1401,7 @@ namespace ProxyZapret
 
             File.Copy(candidate, generatedConfigPath, true);
             File.Delete(candidate);
+            PrivateDiagnostics.Emit("subscription", "Managed subscription changed; restarting core");
             Stop();
             StartCore(generatedConfigPath);
         }
@@ -1520,6 +1560,7 @@ namespace ProxyZapret
         {
             Directory.CreateDirectory(runtime);
             Directory.CreateDirectory(Path.GetDirectoryName(settingsPath));
+            DeleteLegacyCoreLogs();
             if (!File.Exists(settingsPath)) File.Copy(settingsExamplePath, settingsPath);
             if (!File.Exists(statePath))
             {
@@ -1528,6 +1569,20 @@ namespace ProxyZapret
                     { "hwid", Guid.NewGuid().ToString() },
                     { "lastSubscriptionRefreshUtc", null }
                 });
+            }
+            PrivateDiagnostics.Emit("windows", "Client controller initialized");
+        }
+
+        private void DeleteLegacyCoreLogs()
+        {
+            foreach (var name in new[] { "sing-box.log", "sing-box.error.log" })
+            {
+                try
+                {
+                    var path = Path.Combine(runtime, name);
+                    if (File.Exists(path)) File.Delete(path);
+                }
+                catch { }
             }
         }
 
@@ -2022,12 +2077,9 @@ namespace ProxyZapret
         private void AppendLog(string file, string line)
         {
             if (line == null) return;
-            var path = Path.Combine(runtime, file);
             lock (logLock)
             {
-                if (File.Exists(path) && new FileInfo(path).Length > 5 * 1024 * 1024)
-                    File.WriteAllText(path, "", new UTF8Encoding(false));
-                File.AppendAllText(path, line + Environment.NewLine);
+                PrivateDiagnostics.Emit(file.Contains("error") ? "core-error" : "core", line);
             }
         }
 
